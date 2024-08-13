@@ -1,13 +1,23 @@
-const mineflayer = require('mineflayer')
+require('dotenv').config();
+
 const password = `${process.env.PASSWORD}`
 const mail = `${process.env.MAIL}`
+const url = `${process.env.WEBHOOK_URL}`
+console.log(`[INFO] Password: ${password}`)
+console.log(`[INFO] Mail: ${mail}`)
+console.log(`[INFO] Webhook URL: ${url}`)
+const user_list = process.env.USER_BALANCE_LIST.split(',')
+console.log(user_list)
+
+
 const {WebhookClient} = require('discord.js')
 const webhook =
     new WebhookClient({
         url:
-            `${process.env.WEBHOOK_URL}`
+            `${url}`
     })
 
+const mineflayer = require('mineflayer')
 
 class User {
     constructor(username, money, gem, token) {
@@ -54,7 +64,20 @@ const user = new User('', '', '', '');
 
 let real_bot = login();
 
+function get_balances() {
+    for(let i = 0; i < user_list.length; i++) {
+        setTimeout(() => {
+            real_bot.chat(`/balance ${user_list[i]}`)
+            setTimeout(() => {
+                user.send()
+            }, 500)
+        }, 2000 * i)
+    }
+}
 
+setInterval(() => {
+    get_balances()
+}, 3600 * 1000)
 
 function login() {
     let bot = mineflayer.createBot({
@@ -80,43 +103,9 @@ function login() {
         })
         bot.chat('/server gens')
         setTimeout(() => {
-            bot.chat('/balance valgulnecron')
-            setTimeout(() => {
-               user.send()
-            }, 500)
+            get_balances()
         }, 500)
-        setTimeout(() => {
-            bot.chat('/balance _shinda_')
-            setTimeout(() => {
-                user.send()
-            }, 500)
-        }, 1500)
-        setTimeout(() => {
-            bot.chat('/balance summerapi')
-            setTimeout(() => {
-                user.send()
-            }, 500)
-        }, 2500)
-        setInterval(() => {
-            setTimeout(() => {
-                bot.chat('/balance valgulnecron')
-                setTimeout(() => {
-                    user.send()
-                }, 500)
-            }, 500)
-            setTimeout(() => {
-                bot.chat('/balance _shinda_')
-                setTimeout(() => {
-                    user.send()
-                }, 500)
-            }, 1500)
-            setTimeout(() => {
-                bot.chat('/balance summerapi')
-                setTimeout(() => {
-                    user.send()
-                }, 500)
-            }, 2500)
-        }, 3600 * 1000)
+
     })
 
     bot.on('message', (message) => {
