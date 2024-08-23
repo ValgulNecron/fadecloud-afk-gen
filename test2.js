@@ -176,30 +176,3 @@ function reconnect() {
     real_bot.end();
     real_bot = login();
 }
-
-function logBalances(message, color) {
-    console.log(message);
-    const balances = message?.json;
-    console.log(balances);
-
-    const title = balances?.extra[1]?.text;
-    const Value = balances?.extra[0]?.text;
-
-    if (title === 'Money') {
-        user.money = Value;
-    }
-
-    if (title === 'Gems') {
-        user.gem = Value;
-    }
-
-    if (title === 'Tokens') {
-        user.token = Value;
-    }
-}
-
-function logUsername(message) {
-    console.log(message);
-    console.log(message?.json);
-    user.username = message?.json?.text;
-}

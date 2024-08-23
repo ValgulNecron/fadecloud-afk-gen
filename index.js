@@ -1,15 +1,61 @@
-const baseSellingInterval = 60; // in seconds
+const baseSellingInterval = 15; // in seconds
 
 require('dotenv').config();
 
 const password = `${process.env.PASSWORD}`
 const mail = `${process.env.MAIL}`
 const url = `${process.env.WEBHOOK_URL}`
+const url_balance = `${process.env.WEBHOOK_URL_BALANCE}`
 console.log(`[INFO] Password: ${password}`)
 console.log(`[INFO] Mail: ${mail}`)
 console.log(`[INFO] Webhook URL: ${url}`)
 
 
+class User {
+    constructor(username, money, gem, token) {
+        this.username = username;
+        this.money = money;
+        this.gem = gem;
+        this.token = token;
+    }
+
+    send() {
+        const title = `${this.username}\'s Balance`;
+        webhook_balance.send(
+            {
+                username: `${bot.username}`,
+                avatarURL: `https://mineskin.eu/avatar/${bot.username}/100.png`,
+                embeds: [{
+                    title: title,
+                    fields: [
+                        {
+                            name: 'Money',
+                            value: this.money,
+                            inline: false
+                        },
+                        {
+                            name: 'Gem',
+                            value: this.gem,
+                            inline: false
+                        },
+                        {
+                            name: 'Token',
+                            value: this.token,
+                            inline: false
+                        }
+                    ],
+                    color: 0xffae00,
+                    timestamp: new Date().toISOString()
+                }]
+            }
+        )
+    }
+}
+
+const user = new User('', '', '', '');
+
+const mineflayer = require('mineflayer')
+let bot = login()
 
 const {WebhookClient} = require('discord.js')
 const webhook =
@@ -18,12 +64,21 @@ const webhook =
             `${url}`
     })
 
+const webhook_balance =
+    new WebhookClient({
+        url:
+            `${url_balance}`
+    })
+
 const moneyRegex = /(\$)?\s*(\d+(?:\.\d+)*)(?:\s*[A-Za-z])?/;
 const xpRegex = /(\d+,\d+)/;
 const boosterRegex = /(\d+[.,]\d)/
+let user_list = [];
+let do_balance = false
+if (do_balance) {
+    user_list = process.env.USER_BALANCE_LIST.split(',')
+}
 
-const mineflayer = require('mineflayer')
-let real_bot = login();
 
 
 let moneyBooster = 0.0;
@@ -57,7 +112,18 @@ setTimeout(() => {
         console.log('Boost')
         bot.chat('/boosters')
     }, 30 * minutes)
+    setInterval(() => {
+        console.log('Getting cloud balance...')
+        bot.chat('/cloud balance')
+    }, hours)
+    if (do_balance) {
+        setInterval(() => {
+            get_balances()
+        }, 3600 * 1000)
+    }
 }, seconds)
+
+
 
 function login() {
     let bot = mineflayer.createBot({
@@ -81,6 +147,7 @@ function login() {
                 timestamp: new Date().toISOString()
             }]
         })
+
         bot.chat('/server gens')
         setTimeout(() => {
             console.log('Sellall')
@@ -96,7 +163,16 @@ function login() {
             bot.chat('/boosters')
             totalSessionTime = new Date().getTime();
         }, 500)
+
+        if (do_balance) {
+            setTimeout(() => {
+                get_balances()
+            }, 500)
+        }
     })
+
+    // turn on gravity
+    bot.physicsEnabled = true;
 
     bot.on('windowOpen', (window) => {
         const title = window.title
@@ -249,16 +325,6 @@ function login() {
                             inline: true
                         },
                         {
-                            name: 'Total Session Money Per Hour',
-                            value: `${totalSessionMoney / timeDiffInHours}`,
-                            inline: true
-                        },
-                        {
-                            name: 'Total Session XP Per Hour',
-                            value: `${totalSessionXP / timeDiffInHours}`,
-                            inline: true
-                        },
-                        {
                             name: 'Items Sold',
                             value: `${soldItems}`,
                             inline: true
@@ -267,6 +333,11 @@ function login() {
                             name: 'Total Session Items Sold',
                             value: `${totalSessionItemsSold}`,
                             inline: true
+                        },
+                        {
+                            name: 'Current Clouds',
+                            value: `${currentClouds}`,
+                            inline: true
                         }
                     ],
                     color: 0xff00ae,
@@ -274,6 +345,28 @@ function login() {
                 }]
             })
             soldItems = 0;
+        }
+
+
+        if (!do_balance || (text?.includes('Coinflip') || text?.includes('Found'))) {
+            return
+        }
+
+        if (text?.includes('\'s Balance')) {
+            logUsername(message)
+        }
+
+        if (text?.includes('Money')) {
+            const color = 0x00ff00;
+            logBalances(message, color);
+        }
+        if (text?.includes('Tokens') && !text?.includes('Buff') && !text?.includes('Trait')) {
+            const color = 0xffd000;
+            logBalances(message, color);
+        }
+        if (text?.includes('Gems')) {
+            const color = 0x00ffff;
+            logBalances(message, color);
         }
     })
 
@@ -318,6 +411,44 @@ function login() {
 }
 
 function reconnect() {
-    real_bot.end();
-    real_bot = login();
+    bot.end();
+    bot = login();
+}
+
+function get_balances() {
+    for(let i = 0; i < user_list.length; i++) {
+        setTimeout(() => {
+            bot.chat(`/balance ${user_list[i]}`)
+            setTimeout(() => {
+                user.send()
+            }, 500)
+        }, 2000 * i)
+    }
+}
+
+function logBalances(message, color) {
+    console.log(message);
+    const balances = message?.json;
+    console.log(balances);
+
+    const title = balances?.extra[1]?.text;
+    const Value = balances?.extra[0]?.text;
+
+    if (title === 'Money') {
+        user.money = Value;
+    }
+
+    if (title === 'Gems') {
+        user.gem = Value;
+    }
+
+    if (title === 'Tokens') {
+        user.token = Value;
+    }
+}
+
+function logUsername(message) {
+    console.log(message);
+    console.log(message?.json);
+    user.username = message?.json?.text;
 }
