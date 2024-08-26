@@ -2,20 +2,25 @@ require('dotenv').config();
 
 const password = `${process.env.PASSWORD}`
 const mail = `${process.env.MAIL}`
-const url = `${process.env.WEBHOOK_URL}`
 console.log(`[INFO] Password: ${password}`)
 console.log(`[INFO] Mail: ${mail}`)
-console.log(`[INFO] Webhook URL: ${url}`)
 const user_list = process.env.USER_BALANCE_LIST.split(',')
 console.log(user_list)
+const ping_list = process.env.PING_LIST
 
-
+let next_event = '';
+let second = 0;
 const {WebhookClient} = require('discord.js')
-const webhook =
+const webhook_balance =
     new WebhookClient({
         url:
-            `${url}`
+            `${process.env.WEBHOOK_URL_BALANCE}`
     })
+
+const webhook_ping = new WebhookClient({
+    url:
+        `${process.env.WEBHOOK_URL_EVENT}`
+})
 
 const mineflayer = require('mineflayer')
 
@@ -29,7 +34,7 @@ class User {
 
     send() {
         const title = `${this.username}\'s Balance`;
-        webhook.send(
+        webhook_balance.send(
             {
                 username: `${real_bot.username}`,
                 avatarURL: `https://mineskin.eu/avatar/${real_bot.username}/100.png`,
@@ -60,7 +65,7 @@ class User {
     }
 }
 
-const user = new User('', '', '', '');
+const user = new User('Summerapi\'s ', '1', '1', '1');
 
 let real_bot = login();
 
@@ -70,7 +75,7 @@ function get_balances() {
             real_bot.chat(`/balance ${user_list[i]}`)
             setTimeout(() => {
                 user.send()
-            }, 500)
+            }, 1000)
         }, 2000 * i)
     }
 }
@@ -91,7 +96,7 @@ function login() {
 
     bot.once('login', (player) => {
         console.log('I\'m now logged-in')
-        webhook.send({
+        webhook_balance.send({
             username: `${bot.username}`,
             avatarURL: `https://mineskin.eu/avatar/${bot.username}/100.png`,
             embeds: [{
@@ -103,9 +108,11 @@ function login() {
         })
         bot.chat('/server gens')
         setTimeout(() => {
+            get_next_event()
+        }, 1000)
+        setTimeout(() => {
             get_balances()
-        }, 500)
-
+        }, 3000)
     })
 
     bot.on('message', (message) => {
@@ -130,13 +137,96 @@ function login() {
             const color = 0x00ffff;
             logBalances(message, color);
         }
+
+        if (text?.includes("Next Event")) {
+            console.log(message)
+            next_event = text.split(":")[1].trim();
+        }
+
+        if (text?.includes("Time")) {
+            console.log(message)
+            let in_time = text.split(":")[1].trim();
+            // parse time in format xxm xxs to seconds
+            let time = in_time.split(" ");
+            second = 0;
+            if (time.length === 2) {
+                second = parseInt(time[0].replace("m", "")) * 60 + parseInt(time[1].replace("s", ""));
+            } else {
+                second = parseInt(time[0].replace("s", ""));
+            }
+
+            setTimeout(() => {
+                let now = new Date();
+                let unix_timestamp = now.getTime();
+                let seconds = now.getSeconds() + second;
+                now.setSeconds(seconds);
+                console.log(now)
+                unix_timestamp = now.getTime() / 1000;
+                unix_timestamp = unix_timestamp.toString().split(".")[0];
+                console.log(unix_timestamp)
+
+                setTimeout(() => {
+                    ping();
+                }, (second - (5*60))* 1000)
+
+                setTimeout(() => {
+                    get_next_event();
+                }, (second + (5*60))* 1000)
+
+                webhook_ping.send({
+                    username: `${bot.username}`,
+                    avatarURL: `https://mineskin.eu/avatar/${bot.username}/100.png`,
+                    embeds: [{
+                        title: 'Information',
+                        description: `Next Event: ${next_event} <t:${unix_timestamp}:R> \n<t:${unix_timestamp}:T>`,
+                        color: 0xffae00,
+                        timestamp: new Date().toISOString()
+                    }]
+                })
+                second = 0;
+                }, 1000 * 2)
+        }
+
+        if (text?.includes("Duration")) {
+            console.log(message)
+            let in_time = text.split(":")[1].trim();
+            // parse time in format xxm xxs to seconds
+            let time = in_time.split(" ");
+            second = 0;
+            if (time.length === 2) {
+                second = parseInt(time[0].replace("m", "")) * 60 + parseInt(time[1].replace("s", ""));
+            } else {
+                second = parseInt(time[0].replace("s", ""));
+            }
+
+            setTimeout(() => {
+                let now = new Date();
+                let unix_timestamp = now.getTime();
+                let seconds = now.getSeconds() + second;
+                now.setSeconds(seconds);
+                setInterval(() => {
+                    get_next_event();
+                }, (seconds + (5*60))* 1000)
+                webhook_ping.send({
+                    username: `${bot.username}`,
+                    avatarURL: `https://mineskin.eu/avatar/${bot.username}/100.png`,
+                    embeds: [{
+                        title: 'Information',
+                        description: `${ping_list} Current Event: ${next_event} <t:${unix_timestamp}:R>`,
+                        color: 0xffae00,
+                        timestamp: new Date().toISOString()
+                    }]
+                })
+                second = 0;
+            }, 1000 * 2)
+        }
     })
 
 // Log errors and kick reasons:
     bot.on('kicked', (reason, loggedIn) => {
         console.log(`Bot kicked for: ${reason}`)
         console.log('Reconnecting in 30s...')
-        webhook.send({
+        webhook_balance.send({
             username: `${bot.username}`,
             avatarURL: `https://mineskin.eu/avatar/${bot.username}/100.png`,
             embeds: [{
@@ -154,7 +244,7 @@ function login() {
     bot.on('error', (err) => {
         console.log(`Bot errored for: ${err}`)
         console.log('Reconnecting in 30s...')
-        webhook.send({
+        webhook_balance.send({
             username: `${bot.username}`,
             avatarURL: `https://mineskin.eu/avatar/${bot.username}/100.png`,
             embeds: [{
@@ -175,4 +265,45 @@ function login() {
 function reconnect() {
     real_bot.end();
     real_bot = login();
+}
+
+function get_next_event() {
+    real_bot.chat('/events')
+}
+
+
+function logBalances(message, color) {
+    console.log(message);
+    const balances = message?.json;
+    console.log(balances);
+
+    const title = balances?.extra[1]?.text;
+    const Value = balances?.extra[0]?.text;
+
+    if (title === 'Money') {
+        user.money = Value;
+    }
+
+    if (title === 'Gems') {
+        user.gem = Value;
+    }
+
+    if (title === 'Tokens') {
+        user.token = Value;
+    }
+}
+
+function logUsername(message) {
+    console.log(message);
+    console.log(message?.json);
+    user.username = message?.json?.text;
+}
+
+function ping() {
+    let message = `event ${next_event} is starting in 5 minutes! ${ping_list}`
+    webhook_ping.send({
+        username: `${real_bot.username}`,
+        avatarURL: `https://mineskin.eu/avatar/${real_bot.username}/100.png`,
+        content: message
+    })
 }
