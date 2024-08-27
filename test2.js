@@ -204,15 +204,23 @@ function login() {
                 let unix_timestamp = now.getTime();
                 let seconds = now.getSeconds() + second;
                 now.setSeconds(seconds);
-                setInterval(() => {
+                console.log(now)
+                unix_timestamp = now.getTime() / 1000;
+                unix_timestamp = unix_timestamp.toString().split(".")[0];
+                console.log(unix_timestamp)
+                setTimeout(() => {
+                    ping();
+                }, (second - (5*60))* 1000)
+
+                setTimeout(() => {
                     get_next_event();
-                }, (seconds + (5*60))* 1000)
+                }, (second + (5*60))* 1000)
                 webhook_ping.send({
                     username: `${bot.username}`,
                     avatarURL: `https://mineskin.eu/avatar/${bot.username}/100.png`,
                     embeds: [{
                         title: 'Information',
-                        description: `${ping_list} Current Event: ${next_event} <t:${unix_timestamp}:R>`,
+                        description: `Current Event: ${next_event} <t:${unix_timestamp}:R>`,
                         color: 0xffae00,
                         timestamp: new Date().toISOString()
                     }]
