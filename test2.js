@@ -166,7 +166,7 @@ function login() {
                 console.log(unix_timestamp)
 
                 setTimeout(() => {
-                    ping();
+                    nextPing();
                 }, (second - (5*60))* 1000)
 
                 setTimeout(() => {
@@ -209,7 +209,7 @@ function login() {
                 unix_timestamp = unix_timestamp.toString().split(".")[0];
                 console.log(unix_timestamp)
                 setTimeout(() => {
-                    ping();
+                    currentPing();
                 }, (second - (5*60))* 1000)
 
                 setTimeout(() => {
@@ -220,7 +220,7 @@ function login() {
                     avatarURL: `https://mineskin.eu/avatar/${bot.username}/100.png`,
                     embeds: [{
                         title: 'Information',
-                        description: `Current Event: ${next_event} <t:${unix_timestamp}:R>`,
+                        description: `Current Event: ${next_event}  Finish <t:${unix_timestamp}:R>`,
                         color: 0xffae00,
                         timestamp: new Date().toISOString()
                     }]
@@ -307,8 +307,17 @@ function logUsername(message) {
     user.username = message?.json?.text;
 }
 
-function ping() {
+function nextPing() {
     let message = `event ${next_event} is starting in 5 minutes! ${ping_list}`
+    webhook_ping.send({
+        username: `${real_bot.username}`,
+        avatarURL: `https://mineskin.eu/avatar/${real_bot.username}/100.png`,
+        content: message
+    })
+}
+
+function currentPing() {
+    let message = `event ${next_event} is active ${ping_list}`
     webhook_ping.send({
         username: `${real_bot.username}`,
         avatarURL: `https://mineskin.eu/avatar/${real_bot.username}/100.png`,
